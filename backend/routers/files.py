@@ -1,0 +1,186 @@
+import uuid
+import mimetypes
+from fastapi import APIRouter, HTTPException, Request, Depends, UploadFile, File, Form
+from fastapi.security import HTTPAuthorizationCredentials
+from typing import List
+from config import get_supabase_admin
+from middleware.auth import verify_token, security
+
+router = APIRouter(prefix="/files", tags=["files"])
+
+BUCKET_NAME = "task-files"
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+}
+
+# Vendor deliverables must be PDFs
+VENDOR_ALLOWED_MIME = {"application/pdf"}
+
+
+def _generate_signed_url(admin, storage_path: str, expires_in: int = 3600) -> str:
+    """Generate a signed URL valid for `expires_in` seconds."""
+    try:
+        response = admin.storage.from_(BUCKET_NAME).create_signed_url(storage_path, expires_in)
+        return response.get("signedURL") or response.get("signed_url") or ""
+    except Exception:
+        return ""
+
+
+@router.post("/upload/{task_id}")
+async def upload_files(
+    task_id: str,
+    request: Request,
+    file_type: str = Form(...),  # "owner_attachment" | "vendor_deliverable"
+    files: List[UploadFile] = File(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """
+    Upload files for a task.
+    - Owner can upload owner_attachment (PDF/JPEG/PNG, up to 5 files)
+    - Vendor can upload vendor_deliverable (PDF only, up to 2 files)
+    """
+    await verify_token(request, credentials)
+    user_id = request.state.user_id
+    admin = get_supabase_admin()
+
+    # Validate role vs file_type
+    profile = admin.table("profiles").select("role").eq("id", user_id).single().execute()
+    role = profile.data["role"] if profile.data else "vendor"
+
+    if role == "vendor" and file_type != "vendor_deliverable":
+        raise HTTPException(status_code=403, detail="Vendors can only upload deliverables")
+    if role == "owner" and file_type != "owner_attachment":
+        raise HTTPException(status_code=403, detail="Owner can only upload attachments here")
+
+    # Validate task access
+    task = admin.table("tasks").select("*").eq("id", task_id).single().execute()
+    if not task.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if role == "vendor" and task.data["vendor_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Enforce file count limits
+    existing = admin.table("task_files").select("id").eq("task_id", task_id).eq("file_type", file_type).execute()
+    existing_count = len(existing.data or [])
+    max_files = 5 if file_type == "owner_attachment" else 2
+
+    if existing_count + len(files) > max_files:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Exceeds maximum allowed files ({max_files}) for {file_type}",
+        )
+
+    allowed = ALLOWED_MIME_TYPES if file_type == "owner_attachment" else VENDOR_ALLOWED_MIME
+    uploaded = []
+
+    for f in files:
+        # Validate size
+        content = await f.read()
+        if len(content) > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(status_code=413, detail=f"File {f.filename} exceeds 10MB limit")
+
+        # Validate MIME
+        mime = f.content_type or mimetypes.guess_type(f.filename)[0] or "application/octet-stream"
+        if mime not in allowed:
+            raise HTTPException(status_code=415, detail=f"File type {mime} not allowed")
+
+        # Unique storage path
+        ext = f.filename.rsplit(".", 1)[-1] if "." in f.filename else "bin"
+        file_id = str(uuid.uuid4())
+        storage_path = f"{task_id}/{file_type}/{file_id}.{ext}"
+
+        # Upload to Supabase Storage
+        try:
+            admin.storage.from_(BUCKET_NAME).upload(
+                path=storage_path,
+                file=content,
+                file_options={"content-type": mime, "upsert": "false"},
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Storage upload failed: {str(e)}")
+
+        # Insert record in task_files
+        record = {
+            "id": file_id,
+            "task_id": task_id,
+            "uploaded_by": user_id,
+            "file_type": file_type,
+            "file_name": f.filename,
+            "storage_path": storage_path,
+            "mime_type": mime,
+        }
+        db_res = admin.table("task_files").insert(record).execute()
+        if not db_res.data:
+            raise HTTPException(status_code=500, detail="DB insert failed")
+
+        signed_url = _generate_signed_url(admin, storage_path)
+        uploaded.append({"id": file_id, "file_name": f.filename, "signed_url": signed_url, "mime_type": mime})
+
+    return {"uploaded": uploaded}
+
+
+@router.get("/signed-url/{file_id}")
+async def get_signed_url(
+    file_id: str,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """Get a fresh signed URL for a file."""
+    await verify_token(request, credentials)
+    user_id = request.state.user_id
+    admin = get_supabase_admin()
+
+    profile = admin.table("profiles").select("role").eq("id", user_id).single().execute()
+    role = profile.data["role"] if profile.data else "vendor"
+
+    file_rec = admin.table("task_files").select("*").eq("id", file_id).single().execute()
+    if not file_rec.data:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    f = file_rec.data
+    # Check task access for vendor
+    if role == "vendor":
+        task = admin.table("tasks").select("vendor_id").eq("id", f["task_id"]).single().execute()
+        if not task.data or task.data["vendor_id"] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    signed_url = _generate_signed_url(admin, f["storage_path"])
+    return {"signed_url": signed_url, "file_name": f["file_name"], "mime_type": f["mime_type"]}
+
+
+@router.delete("/{file_id}", status_code=204)
+async def delete_file(
+    file_id: str,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """Delete a file from storage and DB (uploader or owner only)."""
+    await verify_token(request, credentials)
+    user_id = request.state.user_id
+    admin = get_supabase_admin()
+
+    profile = admin.table("profiles").select("role").eq("id", user_id).single().execute()
+    role = profile.data["role"] if profile.data else "vendor"
+
+    file_rec = admin.table("task_files").select("*").eq("id", file_id).single().execute()
+    if not file_rec.data:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    f = file_rec.data
+
+    if role == "vendor" and f["uploaded_by"] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        admin.storage.from_(BUCKET_NAME).remove([f["storage_path"]])
+    except Exception:
+        pass  # If already removed from storage, continue
+
+    admin.table("task_files").delete().eq("id", file_id).execute()
+    return None
