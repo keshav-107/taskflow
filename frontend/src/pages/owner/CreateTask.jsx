@@ -86,7 +86,7 @@ export default function CreateTask() {
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Assign a task to a vendor with required files</p>
           </div>
         </div>
-        <button className="btn btn-ghost back-btn-desktop" onClick={() => navigate(-1)}>← Back</button>
+        <button className="btn btn-ghost" onClick={() => navigate(-1)}>← Back</button>
       </div>
 
       <div className="page-body">

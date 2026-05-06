@@ -25,7 +25,9 @@ VENDOR_ALLOWED_MIME = {"application/pdf"}
 def _generate_signed_url(admin, storage_path: str, expires_in: int = 3600) -> str:
     """Generate a signed URL valid for `expires_in` seconds."""
     try:
-        response = admin.storage.from_(BUCKET_NAME).create_signed_url(storage_path, expires_in)
+        response = admin.storage.from_(BUCKET_NAME).create_signed_url(
+            storage_path, expires_in, {"download": True}
+        )
         return response.get("signedURL") or response.get("signed_url") or ""
     except Exception:
         return ""

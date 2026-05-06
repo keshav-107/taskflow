@@ -30,12 +30,23 @@ export default function VendorTaskDetail() {
   useEffect(() => { load(); }, [id]);
 
   const fetchUrl = async (fileId) => {
-    if (signedUrls[fileId]) { window.open(signedUrls[fileId], '_blank'); return; }
-    try {
-      const data = await getSignedUrl(fileId);
-      setSignedUrls(u => ({ ...u, [fileId]: data.signed_url }));
-      window.open(data.signed_url, '_blank');
-    } catch { toast.error('Could not get file URL'); }
+    let url = signedUrls[fileId];
+    if (!url) {
+      try {
+        const data = await getSignedUrl(fileId);
+        url = data.signed_url;
+        setSignedUrls(u => ({ ...u, [fileId]: url }));
+      } catch {
+        toast.error('Could not get file URL');
+        return;
+      }
+    }
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleStartWork = async () => {
@@ -90,7 +101,7 @@ export default function VendorTaskDetail() {
         <div>
           <div className="flex items-center gap-3">
             <HamburgerBtn />
-            <Link to="/vendor/tasks" className="btn btn-ghost btn-sm back-btn-desktop">← Tasks</Link>
+            <Link to="/vendor/tasks" className="btn btn-ghost btn-sm">← Tasks</Link>
             <h1 style={{ fontSize: 18, fontWeight: 700 }}>{task.title}</h1>
             <StatusBadge status={task.status} />
           </div>
