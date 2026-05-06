@@ -46,9 +46,9 @@ export default function VendorTasks() {
       <div className="page-body">
         <div className="flex items-center gap-3" style={{ marginBottom: 20, flexWrap: 'wrap' }}>
           <div className="flex items-center gap-2">
-            <input type="date" className="form-input btn-sm" value={fromDate} onChange={e => setFromDate(e.target.value)} title="From Date" style={{ width: 140 }} />
+            <input type="date" className="form-input btn-sm" value={fromDate} onChange={e => setFromDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} title="From Date" style={{ width: 140 }} />
             <span className="text-muted">–</span>
-            <input type="date" className="form-input btn-sm" value={toDate} onChange={e => setToDate(e.target.value)} title="To Date" style={{ width: 140 }} />
+            <input type="date" className="form-input btn-sm" value={toDate} onChange={e => setToDate(e.target.value)} onClick={e => e.target.showPicker && e.target.showPicker()} title="To Date" style={{ width: 140 }} />
           </div>
           <div className="flex items-center gap-2">
             {ALL_STATUSES.map(s => (

@@ -168,6 +168,7 @@ export default function CreateTask() {
                     className="form-input"
                     value={form.due_date}
                     onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+                    onClick={e => e.target.showPicker && e.target.showPicker()}
                     min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
