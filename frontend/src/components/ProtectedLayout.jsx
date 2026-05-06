@@ -23,10 +23,11 @@ export default function ProtectedLayout({ role }) {
 
   return (
     <div className="app-shell">
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
-        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
-      )}
+      {/* Overlay — always rendered, visible only when sidebar is open on mobile */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
