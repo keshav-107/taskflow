@@ -12,13 +12,13 @@ const vendorNav = [
   { to: '/vendor/tasks',     icon: '📋', label: 'My Tasks' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
   const nav = user?.role === 'owner' ? ownerNav : vendorNav;
   const initials = user?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' open' : ''}`}>
       <div className="sidebar-brand">
         <div className="sidebar-brand-icon">⚡</div>
         <span className="sidebar-brand-name">TaskFlow</span>
@@ -30,6 +30,7 @@ export default function Sidebar() {
           <NavLink
             key={item.to}
             to={item.to}
+            onClick={onClose}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
             <span>{item.icon}</span>

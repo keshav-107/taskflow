@@ -100,7 +100,7 @@ export default function OwnerTaskDetail() {
       <div className="page-header">
         <div>
           <div className="flex items-center gap-3">
-            <Link to="/owner/tasks" className="btn btn-ghost btn-sm">← Tasks</Link>
+            <Link to="/owner/tasks" className="btn btn-ghost btn-sm back-btn-desktop">← Tasks</Link>
             <h1 style={{ fontSize: 18, fontWeight: 700 }}>{task.title}</h1>
             <StatusBadge status={task.status} />
           </div>
@@ -128,7 +128,7 @@ export default function OwnerTaskDetail() {
       </div>
 
       <div className="page-body">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, maxWidth: 960 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 24, maxWidth: 960 }}>
           {/* Main */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Description */}

@@ -1,9 +1,12 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 
 export default function ProtectedLayout({ role }) {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (loading) {
     return (
@@ -20,8 +23,29 @@ export default function ProtectedLayout({ role }) {
 
   return (
     <div className="app-shell">
-      <Sidebar />
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
       <main className="main-content">
+        {/* Mobile topbar with hamburger */}
+        <div className="mobile-topbar">
+          <button className="hamburger" onClick={() => setSidebarOpen(o => !o)} aria-label="Open menu">
+            <span /><span /><span />
+          </button>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>⚡ TaskFlow</span>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => navigate(-1)}
+          >
+            ← Back
+          </button>
+        </div>
+
         <Outlet />
       </main>
     </div>
