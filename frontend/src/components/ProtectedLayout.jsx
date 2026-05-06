@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
+import { SidebarContext } from './SidebarContext';
 
 export default function ProtectedLayout({ role }) {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (loading) {
@@ -23,7 +23,7 @@ export default function ProtectedLayout({ role }) {
 
   return (
     <div className="app-shell">
-      {/* Overlay — always rendered, visible only when sidebar is open on mobile */}
+      {/* Tap-to-close overlay on mobile */}
       <div
         className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`}
         onClick={() => setSidebarOpen(false)}
@@ -32,22 +32,10 @@ export default function ProtectedLayout({ role }) {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="main-content">
-        {/* Mobile topbar with hamburger */}
-        <div className="mobile-topbar">
-          <button className="hamburger" onClick={() => setSidebarOpen(o => !o)} aria-label="Open menu">
-            <span /><span /><span />
-          </button>
-          <span style={{ fontWeight: 700, fontSize: 16 }}>⚡ TaskFlow</span>
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => navigate(-1)}
-          >
-            ← Back
-          </button>
-        </div>
-
-        <Outlet />
+        {/* Provide sidebar toggle to all child pages */}
+        <SidebarContext.Provider value={{ toggle: () => setSidebarOpen(o => !o) }}>
+          <Outlet />
+        </SidebarContext.Provider>
       </main>
     </div>
   );

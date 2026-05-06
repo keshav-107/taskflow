@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listTasks, updateTask, deleteTask } from '../../api/tasks';
 import StatusBadge from '../../components/StatusBadge';
+import HamburgerBtn from '../../components/HamburgerBtn';
 import { useToast } from '../../context/ToastContext';
 
 const ALL_STATUSES = ['', 'pending', 'in_progress', 'submitted', 'completed', 'rejected'];
@@ -61,9 +62,12 @@ export default function OwnerTasks() {
   return (
     <>
       <div className="page-header">
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700 }}>Tasks</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{tasks.length} total tasks</p>
+        <div className="flex items-center gap-3">
+          <HamburgerBtn />
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 700 }}>Tasks</h1>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{tasks.length} total tasks</p>
+          </div>
         </div>
         <Link to="/owner/tasks/new" className="btn btn-primary">＋ New Task</Link>
       </div>

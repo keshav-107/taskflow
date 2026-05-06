@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { listTasks } from '../../api/tasks';
 import StatusBadge from '../../components/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
+import HamburgerBtn from '../../components/HamburgerBtn';
 
 export default function VendorDashboard() {
   const { user } = useAuth();
@@ -29,9 +30,12 @@ export default function VendorDashboard() {
   return (
     <>
       <div className="page-header">
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700 }}>My Dashboard</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Welcome, {user?.full_name} 👋</p>
+        <div className="flex items-center gap-3">
+          <HamburgerBtn />
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 700 }}>My Dashboard</h1>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Welcome, {user?.full_name} 👋</p>
+          </div>
         </div>
         <Link to="/vendor/tasks" className="btn btn-secondary">📋 All Tasks</Link>
       </div>

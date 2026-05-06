@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listVendors, createVendor, updateVendor, deleteVendor } from '../../api/vendors';
 import { useToast } from '../../context/ToastContext';
+import HamburgerBtn from '../../components/HamburgerBtn';
 
 const EMPTY_FORM = { full_name: '', email: '', password: '', phone: '', company_name: '' };
 
@@ -57,9 +58,12 @@ export default function Vendors() {
   return (
     <>
       <div className="page-header">
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700 }}>Vendors</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Manage your vendor accounts</p>
+        <div className="flex items-center gap-3">
+          <HamburgerBtn />
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 700 }}>Vendors</h1>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Manage your vendor accounts</p>
+          </div>
         </div>
         <button id="add-vendor-btn" className="btn btn-primary" onClick={openCreate}>
           ＋ Add Vendor

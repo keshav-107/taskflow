@@ -5,6 +5,7 @@ import { uploadFiles } from '../../api/files';
 import { listVendors } from '../../api/vendors';
 import SingleDocumentSlot from '../../components/SingleDocumentSlot';
 import { useToast } from '../../context/ToastContext';
+import HamburgerBtn from '../../components/HamburgerBtn';
 
 export default function CreateTask() {
   const toast = useToast();
@@ -78,9 +79,12 @@ export default function CreateTask() {
   return (
     <>
       <div className="page-header">
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700 }}>Create New Task</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Assign a task to a vendor with required files</p>
+        <div className="flex items-center gap-3">
+          <HamburgerBtn />
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 700 }}>Create New Task</h1>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Assign a task to a vendor with required files</p>
+          </div>
         </div>
         <button className="btn btn-ghost back-btn-desktop" onClick={() => navigate(-1)}>← Back</button>
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listTasks } from '../../api/tasks';
 import StatusBadge from '../../components/StatusBadge';
+import HamburgerBtn from '../../components/HamburgerBtn';
 
 export default function VendorTasks() {
   const [tasks, setTasks] = useState([]);
@@ -33,9 +34,12 @@ export default function VendorTasks() {
   return (
     <>
       <div className="page-header">
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700 }}>My Tasks</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{tasks.length} tasks assigned to you</p>
+        <div className="flex items-center gap-3">
+          <HamburgerBtn />
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 700 }}>My Tasks</h1>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{tasks.length} tasks assigned to you</p>
+          </div>
         </div>
       </div>
 

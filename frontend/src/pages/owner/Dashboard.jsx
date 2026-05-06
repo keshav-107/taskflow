@@ -4,6 +4,7 @@ import { listTasks } from '../../api/tasks';
 import { listVendors } from '../../api/vendors';
 import StatusBadge from '../../components/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
+import HamburgerBtn from '../../components/HamburgerBtn';
 
 const STATUS_ORDER = ['pending', 'in_progress', 'submitted', 'completed', 'rejected'];
 
@@ -35,9 +36,12 @@ export default function OwnerDashboard() {
   return (
     <>
       <div className="page-header">
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700 }}>Dashboard</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Welcome back, {user?.full_name} 👋</p>
+        <div className="flex items-center gap-3">
+          <HamburgerBtn />
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 700 }}>Dashboard</h1>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Welcome back, {user?.full_name} 👋</p>
+          </div>
         </div>
         <Link to="/owner/tasks/new" className="btn btn-primary">
           ＋ New Task

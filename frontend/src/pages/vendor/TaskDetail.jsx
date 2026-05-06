@@ -5,6 +5,7 @@ import { uploadFiles, getSignedUrl, deleteFile } from '../../api/files';
 import StatusBadge from '../../components/StatusBadge';
 import FileUploadZone from '../../components/FileUploadZone';
 import { useToast } from '../../context/ToastContext';
+import HamburgerBtn from '../../components/HamburgerBtn';
 
 function fileIcon(mime) {
   if (mime?.includes('pdf')) return '📄';
@@ -88,6 +89,7 @@ export default function VendorTaskDetail() {
       <div className="page-header">
         <div>
           <div className="flex items-center gap-3">
+            <HamburgerBtn />
             <Link to="/vendor/tasks" className="btn btn-ghost btn-sm back-btn-desktop">← Tasks</Link>
             <h1 style={{ fontSize: 18, fontWeight: 700 }}>{task.title}</h1>
             <StatusBadge status={task.status} />
