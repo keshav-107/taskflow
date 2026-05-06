@@ -29,7 +29,7 @@ export default function VendorTaskDetail() {
 
   useEffect(() => { load(); }, [id]);
 
-  const fetchUrl = async (fileId) => {
+  const fetchUrl = async (fileId, fileName) => {
     let url = signedUrls[fileId];
     if (!url) {
       try {
@@ -41,12 +41,21 @@ export default function VendorTaskDetail() {
         return;
       }
     }
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = '';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Fetch failed');
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch {
+      window.open(url + (url.includes('?') ? '&' : '?') + 'download=1', '_blank');
+    }
   };
 
   const handleStartWork = async () => {
@@ -148,7 +157,7 @@ export default function VendorTaskDetail() {
                         <span className="file-item-name">{f.file_name}</span>
                         <button
                           className="btn btn-primary btn-sm"
-                          onClick={() => fetchUrl(f.id)}
+                          onClick={() => fetchUrl(f.id, f.file_name)}
                         >
                           ⬇️ Download
                         </button>
