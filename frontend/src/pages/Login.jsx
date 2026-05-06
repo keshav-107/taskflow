@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+
+  // If user is already logged in, redirect them immediately to their dashboard
+  if (user) {
+    return <Navigate to={user.role === 'owner' ? '/owner/dashboard' : '/vendor/dashboard'} replace />;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
