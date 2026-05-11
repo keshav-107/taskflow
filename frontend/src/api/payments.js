@@ -11,3 +11,7 @@ export const addTransaction = (taskId, data) =>
 
 export const getLedger = () =>
   api.get('/payments/ledger').then(r => r.data);
+
+export const getVendorLedger = () =>
+  api.get('/payments/my-ledger').then(r => r.data);
+

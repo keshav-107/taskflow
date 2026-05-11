@@ -17,6 +17,7 @@ import Ledger from './pages/owner/Ledger';
 import VendorDashboard from './pages/vendor/Dashboard';
 import VendorTasks from './pages/vendor/Tasks';
 import VendorTaskDetail from './pages/vendor/TaskDetail';
+import VendorLedger from './pages/vendor/Ledger';
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/vendor/dashboard" element={<VendorDashboard />} />
               <Route path="/vendor/tasks" element={<VendorTasks />} />
               <Route path="/vendor/tasks/:id" element={<VendorTaskDetail />} />
+              <Route path="/vendor/ledger" element={<VendorLedger />} />
             </Route>
 
             {/* Catch all */}

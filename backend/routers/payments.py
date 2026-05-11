@@ -30,12 +30,43 @@ async def get_ledger(
     for p in (payments.data or []):
         txns = admin.table("payment_transactions").select("*").eq("payment_id", p["id"]).execute()
         p["transactions"] = txns.data or []
-        # Calculate net balance
         credits = sum(t["amount"] for t in p["transactions"] if t["direction"] == "credit")
-        debits = sum(t["amount"] for t in p["transactions"] if t["direction"] == "debit")
+        debits  = sum(t["amount"] for t in p["transactions"] if t["direction"] == "debit")
+        p["net_balance"] = credits - debits   # positive = owner earned; negative = owner owes
+        result.append(p)
+    return result
+
+
+@router.get("/my-ledger")
+async def get_vendor_ledger(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """Vendor: see all payment records for their own tasks."""
+    await verify_token(request, credentials)
+    user_id = request.state.user_id
+    admin = get_supabase_admin()
+
+    # Get all tasks assigned to this vendor that have payment records
+    payments = (
+        admin.table("payments")
+        .select("*, tasks(title, registration_no, owner_id, vendor_id)")
+        .execute()
+    )
+
+    result = []
+    for p in (payments.data or []):
+        task = p.get("tasks") or {}
+        if task.get("vendor_id") != user_id:
+            continue
+        txns = admin.table("payment_transactions").select("*").eq("payment_id", p["id"]).order("created_at", desc=False).execute()
+        p["transactions"] = txns.data or []
+        credits = sum(t["amount"] for t in p["transactions"] if t["direction"] == "credit")
+        debits  = sum(t["amount"] for t in p["transactions"] if t["direction"] == "debit")
         p["net_balance"] = credits - debits
         result.append(p)
     return result
+
 
 
 @router.get("/{task_id}")
@@ -105,6 +136,35 @@ async def upsert_payment(
 
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to save payment")
+
+    payment_id = result.data[0]["id"]
+
+    # Auto-sync commission transaction whenever commission_amount is set/changed
+    if body.commission_amount is not None:
+        existing_commission = (
+            admin.table("payment_transactions")
+            .select("id")
+            .eq("payment_id", payment_id)
+            .eq("transaction_type", "commission_deducted")
+            .execute()
+        )
+        if existing_commission.data:
+            # Update existing commission transaction
+            admin.table("payment_transactions").update({
+                "amount": body.commission_amount,
+                "description": "Commission earned on policy",
+            }).eq("id", existing_commission.data[0]["id"]).execute()
+        else:
+            # Create new commission transaction
+            admin.table("payment_transactions").insert({
+                "payment_id": payment_id,
+                "transaction_type": "commission_deducted",
+                "amount": body.commission_amount,
+                "direction": "credit",
+                "description": "Commission earned on policy",
+                "created_by": user_id,
+            }).execute()
+
     return result.data[0]
 
 

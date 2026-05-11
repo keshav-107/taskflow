@@ -11,6 +11,7 @@ const ownerNav = [
 const vendorNav = [
   { to: '/vendor/dashboard', icon: '📊', label: 'Dashboard' },
   { to: '/vendor/tasks',     icon: '📋', label: 'My Tasks' },
+  { to: '/vendor/ledger',    icon: '💰', label: 'My Ledger' },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {

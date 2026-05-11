@@ -375,7 +375,15 @@ function OwnerPaymentCard({ taskId }) {
         {payment.payment_link && (
           <div>
             <span className="text-muted text-sm">Payment Link</span>
-            <a href={payment.payment_link} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm w-full" style={{ marginTop: 6 }}>💳 Pay Now</a>
+            <a
+              href={payment.payment_link.startsWith('http') ? payment.payment_link : `https://${payment.payment_link}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-primary btn-sm w-full"
+              style={{ marginTop: 6 }}
+            >
+              💳 Pay Now
+            </a>
           </div>
         )}
         <hr className="divider" />
