@@ -5,6 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from typing import List
 from config import get_supabase_admin
 from middleware.auth import verify_token, security
+from services.storage import storage_service
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -24,13 +25,7 @@ VENDOR_ALLOWED_MIME = {"application/pdf"}
 
 def _generate_signed_url(admin, storage_path: str, expires_in: int = 3600) -> str:
     """Generate a signed URL valid for `expires_in` seconds."""
-    try:
-        response = admin.storage.from_(BUCKET_NAME).create_signed_url(
-            storage_path, expires_in, {"download": True}
-        )
-        return response.get("signedURL") or response.get("signed_url") or ""
-    except Exception:
-        return ""
+    return storage_service.get_file_url(storage_path)
 
 
 @router.post("/upload/{task_id}")
@@ -92,22 +87,16 @@ async def upload_files(
         if mime not in allowed:
             raise HTTPException(status_code=415, detail=f"File type {mime} not allowed")
 
-        # Unique storage path
-        ext = f.filename.rsplit(".", 1)[-1] if "." in f.filename else "bin"
-        file_id = str(uuid.uuid4())
-        storage_path = f"{task_id}/{file_type}/{file_id}.{ext}"
-
-        # Upload to Supabase Storage
-        try:
-            admin.storage.from_(BUCKET_NAME).upload(
-                path=storage_path,
-                file=content,
-                file_options={"content-type": mime, "upsert": "false"},
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Storage upload failed: {str(e)}")
+        # Upload to configured storage backend (Google Drive or Supabase)
+        storage_path, web_view_url = await storage_service.upload_file(
+            file_bytes=content,
+            original_filename=f.filename,
+            mime_type=mime,
+            task_id=task_id
+        )
 
         # Insert record in task_files
+        file_id = str(uuid.uuid4())
         record = {
             "id": file_id,
             "task_id": task_id,
@@ -180,7 +169,8 @@ async def delete_file(
         raise HTTPException(status_code=403, detail="Access denied")
 
     try:
-        admin.storage.from_(BUCKET_NAME).remove([f["storage_path"]])
+        # Remove from Storage
+        storage_service.delete_file(f["storage_path"])
     except Exception:
         pass  # If already removed from storage, continue
 
