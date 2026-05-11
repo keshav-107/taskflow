@@ -23,7 +23,8 @@ export default function OwnerTaskDetail() {
   const [loading, setLoading] = useState(true);
   const [newFiles, setNewFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [signedUrls, setSignedUrls] = useState({});
+  const [signedUrls, setSignedUrls] = useState({});   // file_id → download URL
+  const [previewUrls, setPreviewUrls] = useState({});  // file_id → preview URL
   const [preview, setPreview] = useState(null);
 
   const load = () => {
@@ -33,26 +34,26 @@ export default function OwnerTaskDetail() {
 
   useEffect(() => { load(); }, [id]);
 
-  const fetchUrl = async (fileId) => {
-    let url = signedUrls[fileId];
-    if (!url) {
-      try {
-        const data = await getSignedUrl(fileId);
-        url = data.signed_url;
-        setSignedUrls(u => ({ ...u, [fileId]: url }));
-      } catch {
-        toast.error('Could not get file URL');
-        return null;
-      }
+  const fetchUrls = async (fileId) => {
+    if (signedUrls[fileId]) return { download: signedUrls[fileId], preview: previewUrls[fileId] };
+    try {
+      const data = await getSignedUrl(fileId);
+      const dl = data.signed_url;
+      const pv = data.preview_url || data.signed_url;
+      setSignedUrls(u => ({ ...u, [fileId]: dl }));
+      setPreviewUrls(u => ({ ...u, [fileId]: pv }));
+      return { download: dl, preview: pv };
+    } catch {
+      toast.error('Could not get file URL');
+      return null;
     }
-    return url;
   };
 
   const handleDownload = async (f) => {
-    const url = await fetchUrl(f.id);
-    if (!url) return;
+    const urls = await fetchUrls(f.id);
+    if (!urls) return;
     try {
-      const resp = await fetch(url);
+      const resp = await fetch(urls.download);
       if (!resp.ok) throw new Error();
       const blob = await resp.blob();
       const obj = window.URL.createObjectURL(blob);
@@ -61,12 +62,12 @@ export default function OwnerTaskDetail() {
       document.body.appendChild(a); a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(obj);
-    } catch { window.open(url, '_blank'); }
+    } catch { window.open(urls.download, '_blank'); }
   };
 
   const handlePreview = async (f) => {
-    const url = await fetchUrl(f.id);
-    if (url) setPreview({ url, name: f.file_name, mime: f.mime_type });
+    const urls = await fetchUrls(f.id);
+    if (urls) setPreview({ url: urls.preview, name: f.file_name, mime: f.mime_type });
   };
 
   const handleUploadMore = async () => {

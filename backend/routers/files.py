@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from typing import List
 from config import get_supabase_admin
 from middleware.auth import verify_token, security
-from services.storage import storage_service
+from services.storage import get_storage_service
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -22,10 +22,6 @@ ALLOWED_MIME_TYPES = {
 # Vendor deliverables must be PDFs
 VENDOR_ALLOWED_MIME = {"application/pdf"}
 
-
-def _generate_signed_url(admin, storage_path: str, expires_in: int = 3600) -> str:
-    """Generate a signed URL valid for `expires_in` seconds."""
-    return storage_service.get_file_url(storage_path)
 
 
 @router.post("/upload/{task_id}")
@@ -88,7 +84,8 @@ async def upload_files(
             raise HTTPException(status_code=415, detail=f"File type {mime} not allowed")
 
         # Upload to configured storage backend (Google Drive or Supabase)
-        storage_path, web_view_url = await storage_service.upload_file(
+        svc = get_storage_service()
+        storage_path, _preview_url = await svc.upload_file(
             file_bytes=content,
             original_filename=f.filename,
             mime_type=mime,
@@ -110,8 +107,9 @@ async def upload_files(
         if not db_res.data:
             raise HTTPException(status_code=500, detail="DB insert failed")
 
-        signed_url = _generate_signed_url(admin, storage_path)
-        uploaded.append({"id": file_id, "file_name": f.filename, "signed_url": signed_url, "mime_type": mime})
+        signed_url = svc.get_file_url(storage_path)
+        preview_url = svc.get_preview_url(storage_path)
+        uploaded.append({"id": file_id, "file_name": f.filename, "signed_url": signed_url, "preview_url": preview_url, "mime_type": mime})
 
     return {"uploaded": uploaded}
 
@@ -141,8 +139,10 @@ async def get_signed_url(
         if not task.data or task.data["vendor_id"] != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    signed_url = _generate_signed_url(admin, f["storage_path"])
-    return {"signed_url": signed_url, "file_name": f["file_name"], "mime_type": f["mime_type"]}
+    svc = get_storage_service()
+    signed_url = svc.get_file_url(f["storage_path"])
+    preview_url = svc.get_preview_url(f["storage_path"])
+    return {"signed_url": signed_url, "preview_url": preview_url, "file_name": f["file_name"], "mime_type": f["mime_type"]}
 
 
 @router.delete("/{file_id}", status_code=204)
@@ -169,10 +169,10 @@ async def delete_file(
         raise HTTPException(status_code=403, detail="Access denied")
 
     try:
-        # Remove from Storage
-        storage_service.delete_file(f["storage_path"])
+        svc = get_storage_service()
+        svc.delete_file(f["storage_path"])
     except Exception:
-        pass  # If already removed from storage, continue
+        pass
 
     admin.table("task_files").delete().eq("id", file_id).execute()
     return None

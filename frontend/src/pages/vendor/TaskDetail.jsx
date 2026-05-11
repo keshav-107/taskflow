@@ -238,7 +238,8 @@ export default function VendorTaskDetail() {
   const [loading, setLoading] = useState(true);
   const [deliverables, setDeliverables] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [signedUrls, setSignedUrls] = useState({});
+  const [signedUrls, setSignedUrls] = useState({});   // file_id → download URL
+  const [previewUrls, setPreviewUrls] = useState({});  // file_id → preview URL
   const [preview, setPreview] = useState(null); // { url, name, mime }
 
   const load = () => {
@@ -247,12 +248,16 @@ export default function VendorTaskDetail() {
   };
   useEffect(() => { load(); }, [id]);
 
-  const fetchUrl = async (fileId) => {
-    if (signedUrls[fileId]) return signedUrls[fileId];
+  const fetchUrls = async (fileId) => {
+    // Return cached if available
+    if (signedUrls[fileId]) return { download: signedUrls[fileId], preview: previewUrls[fileId] };
     try {
       const data = await getSignedUrl(fileId);
-      setSignedUrls(u => ({ ...u, [fileId]: data.signed_url }));
-      return data.signed_url;
+      const dl = data.signed_url;
+      const pv = data.preview_url || data.signed_url; // fallback for Supabase
+      setSignedUrls(u => ({ ...u, [fileId]: dl }));
+      setPreviewUrls(u => ({ ...u, [fileId]: pv }));
+      return { download: dl, preview: pv };
     } catch {
       toast.error('Could not get file URL');
       return null;
@@ -260,15 +265,15 @@ export default function VendorTaskDetail() {
   };
 
   const handlePreview = async (f) => {
-    const url = await fetchUrl(f.id);
-    if (url) setPreview({ url, name: f.file_name, mime: f.mime_type });
+    const urls = await fetchUrls(f.id);
+    if (urls) setPreview({ url: urls.preview, name: f.file_name, mime: f.mime_type });
   };
 
   const handleDownload = async (f) => {
-    const url = await fetchUrl(f.id);
-    if (!url) return;
+    const urls = await fetchUrls(f.id);
+    if (!urls) return;
     try {
-      const resp = await fetch(url);
+      const resp = await fetch(urls.download);
       if (!resp.ok) throw new Error();
       const blob = await resp.blob();
       const obj = window.URL.createObjectURL(blob);
@@ -278,7 +283,7 @@ export default function VendorTaskDetail() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(obj);
     } catch {
-      window.open(url, '_blank');
+      window.open(urls.download, '_blank');
     }
   };
 
@@ -320,7 +325,12 @@ export default function VendorTaskDetail() {
         <FilePreviewModal
           file={preview}
           onClose={() => setPreview(null)}
-          onDownload={() => { handleDownload({ id: Object.keys(signedUrls).find(k => signedUrls[k] === preview.url), file_name: preview.name, mime_type: preview.mime }); setPreview(null); }}
+          onDownload={() => {
+            // Find which file matches this preview and download it
+            const fileId = Object.keys(previewUrls).find(k => previewUrls[k] === preview.url);
+            if (fileId) handleDownload({ id: fileId, file_name: preview.name });
+            setPreview(null);
+          }}
         />
       )}
 
