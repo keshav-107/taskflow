@@ -1,6 +1,8 @@
 # Python
 backend/.env
 backend/google-credentials.json
+oauth_credentials.json
+get_refresh_token.py
 backend/venv/
 backend/__pycache__/
 backend/**/__pycache__/

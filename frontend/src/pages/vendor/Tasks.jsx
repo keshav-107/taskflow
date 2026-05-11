@@ -78,12 +78,19 @@ export default function VendorTasks() {
             {displayed.map(task => (
               <Link key={task.id} to={`/vendor/tasks/${task.id}`} className="task-card">
                 <div className="task-card-header">
-                  <span className="task-card-title">{task.title}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {task.registration_no && (
+                        <span className="task-card-title" style={{ color: 'var(--text-accent)', fontWeight: 700 }}>🚗 {task.registration_no}</span>
+                      )}
+                      <span className="text-muted" style={{ fontSize: 13 }}>{task.title}</span>
+                    </div>
+                    {task.description && (
+                      <p className="text-muted text-sm truncate" style={{ marginTop: 2 }}>{task.description}</p>
+                    )}
+                  </div>
                   <StatusBadge status={task.status} />
                 </div>
-                {task.description && (
-                  <p className="text-muted text-sm truncate">{task.description}</p>
-                )}
                 <div className="task-card-meta">
                   {task.due_date && (
                     <span className="task-meta-item">📅 Due {new Date(task.due_date).toLocaleDateString()}</span>

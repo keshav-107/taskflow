@@ -43,8 +43,11 @@ export default function OwnerTasks() {
   };
 
   const displayed = tasks.filter(t => {
-    const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) ||
-                          t.vendor?.full_name?.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchesSearch = !q ||
+      (t.registration_no || '').toLowerCase().includes(q) ||
+      (t.title || '').toLowerCase().includes(q) ||
+      (t.vendor?.full_name || '').toLowerCase().includes(q);
     
     let matchesDate = true;
     const taskDate = new Date(t.created_at).setHours(0,0,0,0);
@@ -77,7 +80,7 @@ export default function OwnerTasks() {
         <div className="flex items-center gap-3" style={{ marginBottom: 20, flexWrap: 'wrap' }}>
           <input
             className="form-input"
-            placeholder="🔍  Search tasks or vendors…"
+            placeholder="🔍  Search by Reg No, title or vendor…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ maxWidth: 220 }}
@@ -122,9 +125,12 @@ export default function OwnerTasks() {
                     <Link
                       to={`/owner/tasks/${task.id}`}
                       className="task-card-title"
-                      style={{ display: 'block', color: 'var(--text-primary)', textDecoration: 'none' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)', textDecoration: 'none' }}
                     >
-                      {task.title}
+                      {task.registration_no && (
+                        <span style={{ fontWeight: 700, color: 'var(--text-accent)', fontSize: 15 }}>🚗 {task.registration_no}</span>
+                      )}
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 13 }}>{task.title}</span>
                     </Link>
                     {task.description && (
                       <p className="text-muted text-sm truncate" style={{ marginTop: 4 }}>{task.description}</p>

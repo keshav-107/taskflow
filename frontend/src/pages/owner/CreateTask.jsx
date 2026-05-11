@@ -112,7 +112,7 @@ export default function CreateTask() {
                   <span className="form-hint">Documents will be named using this registration number.</span>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Task Title / Description <span>*</span></label>
+                  <label className="form-label">Task Title <span>*</span></label>
                   <input
                     id="task-title"
                     className="form-input"
