@@ -14,3 +14,13 @@ export const getSignedUrl = (fileId) =>
 
 export const deleteFile = (fileId) =>
   api.delete(`/files/${fileId}`);
+
+/**
+ * Fetch file bytes via backend proxy and return a blob URL.
+ * Use this for preview to avoid Google Drive iframe auth issues.
+ */
+export const getFileBlob = async (fileId) => {
+  const resp = await api.get(`/files/proxy/${fileId}`, { responseType: 'blob' });
+  return URL.createObjectURL(resp.data);
+};
+

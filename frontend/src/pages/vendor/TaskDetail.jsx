@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getTask, updateTask } from '../../api/tasks';
-import { uploadFiles, getSignedUrl, deleteFile } from '../../api/files';
+import { uploadFiles, getSignedUrl, deleteFile, getFileBlob } from '../../api/files';
 import { getComments, addComment } from '../../api/comments';
 import { getPayment, upsertPayment, addTransaction } from '../../api/payments';
 import StatusBadge from '../../components/StatusBadge';
@@ -265,8 +265,13 @@ export default function VendorTaskDetail() {
   };
 
   const handlePreview = async (f) => {
-    const urls = await fetchUrls(f.id);
-    if (urls) setPreview({ url: urls.preview, name: f.file_name, mime: f.mime_type });
+    try {
+      const blobUrl = await getFileBlob(f.id);
+      setPreview({ url: blobUrl, name: f.file_name, mime: f.mime_type });
+    } catch {
+      const urls = await fetchUrls(f.id);
+      if (urls) setPreview({ url: urls.download, name: f.file_name, mime: f.mime_type });
+    }
   };
 
   const handleDownload = async (f) => {

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getTask, updateTask, deleteTask } from '../../api/tasks';
-import { uploadFiles, getSignedUrl, deleteFile } from '../../api/files';
+import { uploadFiles, getSignedUrl, deleteFile, getFileBlob } from '../../api/files';
 import { getComments, addComment } from '../../api/comments';
 import { getPayment, upsertPayment, addTransaction } from '../../api/payments';
 import StatusBadge from '../../components/StatusBadge';
@@ -66,8 +66,15 @@ export default function OwnerTaskDetail() {
   };
 
   const handlePreview = async (f) => {
-    const urls = await fetchUrls(f.id);
-    if (urls) setPreview({ url: urls.preview, name: f.file_name, mime: f.mime_type });
+    // Use blob proxy so file renders directly without Google auth issues
+    try {
+      const blobUrl = await getFileBlob(f.id);
+      setPreview({ url: blobUrl, name: f.file_name, mime: f.mime_type });
+    } catch {
+      // Fallback: try the signed URL
+      const urls = await fetchUrls(f.id);
+      if (urls) setPreview({ url: urls.download, name: f.file_name, mime: f.mime_type });
+    }
   };
 
   const handleUploadMore = async () => {
@@ -185,14 +192,14 @@ export default function OwnerTaskDetail() {
 
             {/* Owner Attachments */}
             <div className="card">
-              <div className="card-header"><span className="card-title">📎 Your Attachments ({attachments.length}/5)</span></div>
+              <div className="card-header"><span className="card-title">📎 Your Attachments ({attachments.length})</span></div>
               <div className="card-body">
                 {attachments.length > 0 && (
                   <div className="file-list" style={{ marginBottom: 16, marginTop: 0 }}>
                     {attachments.map(f => (
                       <div key={f.id} className="file-item">
                         <span className="file-item-icon">{fileIcon(f.mime_type)}</span>
-                        <span className="file-item-name">{f.file_name}</span>
+                        <span className="file-item-name" title={f.file_name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{f.file_name}</span>
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button className="btn btn-secondary btn-sm" onClick={() => handlePreview(f)}>👁️</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => handleDownload(f)}>⬇️</button>
@@ -202,22 +209,20 @@ export default function OwnerTaskDetail() {
                     ))}
                   </div>
                 )}
-                {existingCount < 5 && (
-                  <>
-                    <FileUploadZone files={newFiles} onChange={setNewFiles} maxFiles={5 - existingCount} />
+                <>
+                    <FileUploadZone files={newFiles} onChange={setNewFiles} maxFiles={20} />
                     {newFiles.length > 0 && (
                       <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={handleUploadMore} disabled={uploading}>
                         {uploading ? <><span className="spinner" /> Uploading…</> : `⬆️ Upload ${newFiles.length} file(s)`}
                       </button>
                     )}
                   </>
-                )}
               </div>
             </div>
 
             {/* Vendor Deliverables */}
             <div className="card">
-              <div className="card-header"><span className="card-title">📤 Vendor Deliverables ({deliverables.length}/2)</span></div>
+              <div className="card-header"><span className="card-title">📤 Vendor Deliverables ({deliverables.length})</span></div>
               <div className="card-body">
                 {deliverables.length === 0 ? (
                   <div className="empty-state" style={{ padding: '24px 0' }}>
@@ -230,7 +235,7 @@ export default function OwnerTaskDetail() {
                     {deliverables.map(f => (
                       <div key={f.id} className="file-item">
                         <span className="file-item-icon">📄</span>
-                        <span className="file-item-name">{f.file_name}</span>
+                        <span className="file-item-name" title={f.file_name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{f.file_name}</span>
                         <span className="text-muted text-sm">{new Date(f.created_at).toLocaleDateString()}</span>
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button className="btn btn-secondary btn-sm" onClick={() => handlePreview(f)}>👁️ Preview</button>

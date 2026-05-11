@@ -1,6 +1,8 @@
 import uuid
 import mimetypes
+import io
 from fastapi import APIRouter, HTTPException, Request, Depends, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from typing import List
 from config import get_supabase_admin
@@ -58,10 +60,10 @@ async def upload_files(
     if role == "vendor" and task.data["vendor_id"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Enforce file count limits
+    # Enforce file count limits (generous limit for owner, 2 for vendor deliverables)
     existing = admin.table("task_files").select("id").eq("task_id", task_id).eq("file_type", file_type).execute()
     existing_count = len(existing.data or [])
-    max_files = 5 if file_type == "owner_attachment" else 2
+    max_files = 20 if file_type == "owner_attachment" else 5
 
     if existing_count + len(files) > max_files:
         raise HTTPException(
@@ -143,6 +145,47 @@ async def get_signed_url(
     signed_url = svc.get_file_url(f["storage_path"])
     preview_url = svc.get_preview_url(f["storage_path"])
     return {"signed_url": signed_url, "preview_url": preview_url, "file_name": f["file_name"], "mime_type": f["mime_type"]}
+
+
+@router.get("/proxy/{file_id}")
+async def proxy_file(
+    file_id: str,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """
+    Stream file bytes through the backend.
+    Frontend fetches this as a blob and creates an object URL for preview,
+    avoiding Google Drive iframe/authentication embedding issues.
+    """
+    await verify_token(request, credentials)
+    user_id = request.state.user_id
+    admin = get_supabase_admin()
+
+    profile = admin.table("profiles").select("role").eq("id", user_id).single().execute()
+    role = profile.data["role"] if profile.data else "vendor"
+
+    file_rec = admin.table("task_files").select("*").eq("id", file_id).single().execute()
+    if not file_rec.data:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    f = file_rec.data
+    if role == "vendor":
+        task = admin.table("tasks").select("vendor_id").eq("id", f["task_id"]).single().execute()
+        if not task.data or task.data["vendor_id"] != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        svc = get_storage_service()
+        file_bytes = svc.download_file_bytes(f["storage_path"])
+        mime = f.get("mime_type") or "application/octet-stream"
+        return StreamingResponse(
+            io.BytesIO(file_bytes),
+            media_type=mime,
+            headers={"Content-Disposition": f'inline; filename="{f["file_name"]}"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch file: {e}")
 
 
 @router.delete("/{file_id}", status_code=204)

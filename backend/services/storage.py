@@ -148,7 +148,27 @@ class StorageService:
         else:
             return self.get_file_url(storage_identifier)
 
+    # ─── Download (proxy) ─────────────────────────────────────────────────────
+
+    def download_file_bytes(self, storage_identifier: str) -> bytes:
+        """Download raw file bytes — used by the /files/proxy endpoint."""
+        if self.backend == "gdrive":
+            from googleapiclient.http import MediaIoBaseDownload
+            import io
+            req = self._drive_service.files().get_media(fileId=storage_identifier)
+            buf = io.BytesIO()
+            dl = MediaIoBaseDownload(buf, req)
+            done = False
+            while not done:
+                _, done = dl.next_chunk()
+            return buf.getvalue()
+        else:
+            from config import get_supabase_admin
+            admin = get_supabase_admin()
+            return admin.storage.from_("task-files").download(storage_identifier)
+
     # ─── Delete ───────────────────────────────────────────────────────────────
+
 
     def delete_file(self, storage_identifier: str):
         if self.backend == "gdrive":
