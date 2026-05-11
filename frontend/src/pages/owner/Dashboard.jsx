@@ -103,8 +103,13 @@ export default function OwnerDashboard() {
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                       onMouseLeave={e => e.currentTarget.style.background = ''}
                     >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="font-semibold truncate" style={{ fontSize: 14 }}>{task.title}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {task.registration_no && (
+                            <span className="font-semibold" style={{ fontSize: 14, color: 'var(--text-accent)' }}>🚗 {task.registration_no}</span>
+                          )}
+                          <span className="text-muted truncate" style={{ fontSize: 13 }}>{task.title}</span>
+                        </div>
                         <div className="text-muted text-sm">{task.vendor?.full_name || 'Unassigned'}</div>
                       </div>
                       <StatusBadge status={task.status} />

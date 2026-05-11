@@ -91,7 +91,12 @@ export default function VendorDashboard() {
                     onMouseLeave={e => e.currentTarget.style.background = ''}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="font-semibold truncate" style={{ fontSize: 14 }}>{task.title}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {task.registration_no && (
+                            <span className="font-semibold" style={{ fontSize: 14, color: 'var(--text-accent)' }}>🚗 {task.registration_no}</span>
+                          )}
+                          <span className="text-muted truncate" style={{ fontSize: 13 }}>{task.title}</span>
+                        </div>
                       {task.due_date && (
                         <div className="text-muted text-sm">
                           📅 Due {new Date(task.due_date).toLocaleDateString()}

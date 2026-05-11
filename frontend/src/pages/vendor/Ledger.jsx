@@ -15,7 +15,8 @@ export default function VendorLedger() {
 
   const totalPolicy     = entries.reduce((s, e) => s + (Number(e.policy_amount) || 0), 0);
   const totalCommission = entries.reduce((s, e) => s + (Number(e.commission_amount) || 0), 0);
-  const totalBalance    = entries.reduce((s, e) => s + (Number(e.net_balance) || 0), 0);
+  // From vendor's view: positive = vendor owes owner (debits - credits since credits are owner's earnings)
+  const totalOwed       = entries.reduce((s, e) => s + (Number(e.net_balance) || 0), 0);
 
   if (loading) return (
     <div className="page-body flex items-center justify-center" style={{ minHeight: 300 }}>
@@ -42,14 +43,14 @@ export default function VendorLedger() {
             <span className="stat-label">Total Policy Value</span>
             <span className="stat-value">₹{totalPolicy.toLocaleString()}</span>
           </div>
-          <div className="stat-card success">
-            <span className="stat-label">Total Commission Earned</span>
+          <div className="stat-card info">
+            <span className="stat-label">Total Commission to Owner</span>
             <span className="stat-value">₹{totalCommission.toLocaleString()}</span>
           </div>
-          <div className={`stat-card ${totalBalance >= 0 ? 'success' : 'warning'}`}>
-            <span className="stat-label">Net Balance</span>
-            <span className="stat-value" style={{ color: totalBalance >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-              {totalBalance >= 0 ? '+' : '-'}₹{Math.abs(totalBalance).toLocaleString()}
+          <div className={`stat-card ${totalOwed <= 0 ? 'success' : 'warning'}`}>
+            <span className="stat-label">{totalOwed >= 0 ? 'Amount You Owe Owner' : 'Owner Owes You'}</span>
+            <span className="stat-value" style={{ color: totalOwed > 0 ? 'var(--warning)' : 'var(--success)' }}>
+              ₹{Math.abs(totalOwed).toLocaleString()}
             </span>
           </div>
         </div>
@@ -96,8 +97,10 @@ export default function VendorLedger() {
                         <td style={{ padding: '12px 16px', fontSize: 14 }}>₹{Number(e.policy_amount || 0).toLocaleString()}</td>
                         <td style={{ padding: '12px 16px', fontSize: 14 }}>₹{Number(e.commission_amount || 0).toLocaleString()}</td>
                         <td style={{ padding: '12px 16px' }}>
-                          <span style={{ fontWeight: 700, color: e.net_balance >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                            {e.net_balance >= 0 ? '+' : ''}₹{Number(e.net_balance || 0).toLocaleString()}
+                          {/* From vendor's perspective: positive net_balance means vendor owes owner */}
+                          <span style={{ fontWeight: 700, color: e.net_balance > 0 ? 'var(--warning)' : 'var(--success)' }}>
+                            {e.net_balance > 0 ? 'Owe ' : 'Owed '}
+                            ₹{Math.abs(Number(e.net_balance || 0)).toLocaleString()}
                           </span>
                         </td>
                         <td style={{ padding: '12px 16px' }}>

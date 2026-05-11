@@ -296,7 +296,13 @@ export default function VendorTaskDetail() {
     if (deliverables.length === 0) { toast.error('Please upload at least one PDF deliverable.'); return; }
     setUploading(true);
     try {
-      await uploadFiles(id, 'vendor_deliverable', deliverables);
+      // Rename files with registration number prefix (same as owner attachments)
+      const regPrefix = task.registration_no ? `${task.registration_no}_` : '';
+      const renamedFiles = deliverables.map(f => {
+        const newName = `${regPrefix}${f.name}`;
+        return new File([f], newName, { type: f.type });
+      });
+      await uploadFiles(id, 'vendor_deliverable', renamedFiles);
       await updateTask(id, { status: 'submitted' });
       toast.success('Deliverables submitted!');
       setDeliverables([]); load();
