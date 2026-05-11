@@ -79,6 +79,7 @@ class CreateTaskRequest(BaseModel):
     description: Optional[str] = None
     vendor_id: str
     due_date: Optional[date] = None
+    registration_no: Optional[str] = None
 
 
 class UpdateTaskRequest(BaseModel):
@@ -87,6 +88,7 @@ class UpdateTaskRequest(BaseModel):
     vendor_id: Optional[str] = None
     status: Optional[TaskStatus] = None
     due_date: Optional[date] = None
+    registration_no: Optional[str] = None
 
 
 class TaskFileOut(BaseModel):
@@ -108,6 +110,7 @@ class TaskOut(BaseModel):
     owner_id: str
     vendor_id: str
     due_date: Optional[date]
+    registration_no: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     vendor: Optional[ProfileOut] = None
@@ -123,27 +126,70 @@ class FileUploadResponse(BaseModel):
     mime_type: str
 
 
-# ─── Payment (placeholder for future) ────────────────────────────────────────
+# ─── Comments ────────────────────────────────────────────────────────────────
+
+class CreateCommentRequest(BaseModel):
+    message: str
+
+
+class CommentOut(BaseModel):
+    id: str
+    task_id: str
+    author_id: str
+    message: str
+    author_name: Optional[str] = None
+    created_at: datetime
+
+
+# ─── Payment (Ledger) ─────────────────────────────────────────────────────────
 
 class PaymentStatus(str, Enum):
     pending = "pending"
-    paid = "paid"
+    owner_paid = "owner_paid"
+    vendor_paid = "vendor_paid"
+    settled = "settled"
+
+
+class TransactionType(str, Enum):
+    owner_payment = "owner_payment"
+    vendor_self_payment = "vendor_self_payment"
+    commission_deducted = "commission_deducted"
 
 
 class CreatePaymentRequest(BaseModel):
-    task_id: str
-    vendor_id: str
-    amount: float
-    commission: Optional[float] = None
+    policy_amount: Optional[float] = None
+    commission_amount: Optional[float] = None
+    payment_link: Optional[str] = None
     notes: Optional[str] = None
+
+
+class AddTransactionRequest(BaseModel):
+    transaction_type: TransactionType
+    amount: float
+    description: Optional[str] = None
+    proof_file_url: Optional[str] = None
+
+
+class TransactionOut(BaseModel):
+    id: str
+    payment_id: str
+    transaction_type: str
+    amount: float
+    direction: str
+    description: Optional[str]
+    proof_file_url: Optional[str]
+    created_by: Optional[str]
+    created_at: datetime
 
 
 class PaymentOut(BaseModel):
     id: str
     task_id: str
-    vendor_id: str
-    amount: float
-    commission: Optional[float]
-    status: PaymentStatus
+    policy_amount: Optional[float]
+    commission_amount: Optional[float]
+    payment_link: Optional[str]
+    status: str
     notes: Optional[str]
+    transactions: Optional[list] = []
     created_at: datetime
+    updated_at: datetime

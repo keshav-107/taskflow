@@ -48,6 +48,7 @@ async def create_task(
         "owner_id": owner_id,
         "status": "pending",
         "due_date": body.due_date.isoformat() if body.due_date else None,
+        "registration_no": body.registration_no,
     }
     result = admin.table("tasks").insert(task_data).execute()
     if not result.data:

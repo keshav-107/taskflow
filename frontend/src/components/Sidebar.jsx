@@ -5,6 +5,7 @@ const ownerNav = [
   { to: '/owner/dashboard', icon: '📊', label: 'Dashboard' },
   { to: '/owner/tasks',     icon: '📋', label: 'Tasks' },
   { to: '/owner/vendors',   icon: '🏢', label: 'Vendors' },
+  { to: '/owner/ledger',    icon: '💰', label: 'Ledger' },
 ];
 
 const vendorNav = [

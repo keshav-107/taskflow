@@ -11,6 +11,7 @@ import OwnerTasks from './pages/owner/Tasks';
 import CreateTask from './pages/owner/CreateTask';
 import OwnerTaskDetail from './pages/owner/TaskDetail';
 import Vendors from './pages/owner/Vendors';
+import Ledger from './pages/owner/Ledger';
 
 // Vendor pages
 import VendorDashboard from './pages/vendor/Dashboard';
@@ -34,6 +35,7 @@ export default function App() {
               <Route path="/owner/tasks/new" element={<CreateTask />} />
               <Route path="/owner/tasks/:id" element={<OwnerTaskDetail />} />
               <Route path="/owner/vendors" element={<Vendors />} />
+              <Route path="/owner/ledger" element={<Ledger />} />
             </Route>
 
             {/* Vendor routes */}

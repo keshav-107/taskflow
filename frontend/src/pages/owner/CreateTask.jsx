@@ -22,7 +22,7 @@ export default function CreateTask() {
     additional_doc: null
   });
 
-  const [form, setForm] = useState({ title: '', description: '', vendor_id: '', due_date: '' });
+  const [form, setForm] = useState({ title: '', description: '', vendor_id: '', due_date: '', registration_no: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -39,7 +39,11 @@ export default function CreateTask() {
         description: form.description || undefined,
         vendor_id: form.vendor_id,
         due_date: form.due_date || undefined,
+        registration_no: form.registration_no || undefined,
       });
+
+      // Rename files using registration number if available
+      const regPrefix = form.registration_no ? `${form.registration_no}_` : '';
 
       // Gather all filled document slots
       const finalFiles = [];
@@ -54,9 +58,8 @@ export default function CreateTask() {
 
       Object.entries(docs).forEach(([key, file]) => {
         if (file) {
-          // Rename file so the vendor knows exactly what it is
           const ext = file.name.split('.').pop() || 'jpg';
-          const cleanName = `${labels[key]} - Original.${ext}`;
+          const cleanName = `${regPrefix}${labels[key]}.${ext}`;
           finalFiles.push(new File([file], cleanName, { type: file.type }));
         }
       });
@@ -97,7 +100,19 @@ export default function CreateTask() {
               <div className="card card-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>📋 Task Details</div>
                 <div className="form-group">
-                  <label className="form-label">Task Title <span>*</span></label>
+                  <label className="form-label">Vehicle Registration No. <span>*</span></label>
+                  <input
+                    id="task-reg-no"
+                    className="form-input"
+                    placeholder="e.g. MH12AB1234"
+                    required
+                    value={form.registration_no}
+                    onChange={e => setForm(f => ({ ...f, registration_no: e.target.value.toUpperCase() }))}
+                  />
+                  <span className="form-hint">Documents will be named using this registration number.</span>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Task Title / Description <span>*</span></label>
                   <input
                     id="task-title"
                     className="form-input"

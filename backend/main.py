@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import get_settings
-from routers import auth, vendors, tasks, files
+from routers import auth, vendors, tasks, files, comments, payments
 
 settings = get_settings()
 
@@ -28,6 +28,8 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(vendors.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
+app.include_router(comments.router, prefix="/api")
+app.include_router(payments.router, prefix="/api")
 
 
 @app.get("/")
