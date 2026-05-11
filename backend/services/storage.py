@@ -5,9 +5,9 @@ from typing import Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
-# Try importing Google libraries — fail gracefully if not installed
 try:
-    from google.oauth2 import service_account
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request as GoogleRequest
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaIoBaseUpload
     GOOGLE_API_AVAILABLE = True
@@ -15,13 +15,13 @@ except ImportError:
     GOOGLE_API_AVAILABLE = False
 
 
-def _direct_preview_url(file_id: str) -> str:
-    """Returns a direct URL that can be embedded in <img> or <iframe> for preview."""
+def _preview_url(file_id: str) -> str:
+    """Embeddable preview URL (works in <iframe> and <img>)."""
     return f"https://drive.google.com/file/d/{file_id}/preview"
 
 
-def _direct_download_url(file_id: str) -> str:
-    """Returns a direct download URL (works as a Blob fetch target)."""
+def _download_url(file_id: str) -> str:
+    """Direct download/fetch URL."""
     return f"https://drive.google.com/uc?export=download&id={file_id}&confirm=t"
 
 
@@ -32,32 +32,41 @@ class StorageService:
 
         if self.backend == "gdrive":
             if not GOOGLE_API_AVAILABLE:
-                logger.warning("Google API libraries not installed. Falling back to Supabase storage.")
+                logger.warning("Google API libraries not installed. Falling back to Supabase.")
                 self.backend = "supabase"
                 return
 
+            client_id     = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+            client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+            refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN", "").strip()
             self.folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "").strip()
-            self.creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "google-credentials.json").strip()
 
-            if not self.folder_id:
-                logger.warning("GOOGLE_DRIVE_FOLDER_ID not set. Falling back to Supabase.")
-                self.backend = "supabase"
-                return
-
-            if not os.path.exists(self.creds_path):
-                logger.warning(f"Credentials file '{self.creds_path}' not found. Falling back to Supabase.")
+            if not all([client_id, client_secret, refresh_token, self.folder_id]):
+                missing = [k for k, v in {
+                    "GOOGLE_CLIENT_ID": client_id,
+                    "GOOGLE_CLIENT_SECRET": client_secret,
+                    "GOOGLE_REFRESH_TOKEN": refresh_token,
+                    "GOOGLE_DRIVE_FOLDER_ID": self.folder_id,
+                }.items() if not v]
+                logger.warning(f"Google Drive missing env vars: {missing}. Falling back to Supabase.")
                 self.backend = "supabase"
                 return
 
             try:
-                creds = service_account.Credentials.from_service_account_file(
-                    self.creds_path,
+                creds = Credentials(
+                    token=None,
+                    refresh_token=refresh_token,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=client_id,
+                    client_secret=client_secret,
                     scopes=["https://www.googleapis.com/auth/drive"],
                 )
+                # Force a token refresh to validate credentials at startup
+                creds.refresh(GoogleRequest())
                 self._drive_service = build("drive", "v3", credentials=creds, cache_discovery=False)
-                logger.info("Google Drive storage backend initialized successfully.")
+                logger.info("✅ Google Drive OAuth2 storage backend ready.")
             except Exception as e:
-                logger.error(f"Failed to initialize Google Drive: {e}. Falling back to Supabase.")
+                logger.error(f"Google Drive OAuth2 init failed: {e}. Falling back to Supabase.")
                 self.backend = "supabase"
 
     # ─── Upload ───────────────────────────────────────────────────────────────
@@ -69,13 +78,6 @@ class StorageService:
         mime_type: str,
         task_id: str,
     ) -> Tuple[str, Optional[str]]:
-        """
-        Upload a file and return (storage_identifier, preview_url).
-        
-        - Google Drive: storage_identifier = Drive file_id (e.g. "1xABCDef...")
-        - Supabase:     storage_identifier = storage path (e.g. "task-id/filename.pdf")
-        - preview_url:  a URL suitable for embedding; None for Supabase (fetched on demand)
-        """
         if self.backend == "gdrive":
             return await self._upload_gdrive(file_bytes, original_filename, mime_type)
         else:
@@ -84,33 +86,33 @@ class StorageService:
     async def _upload_gdrive(
         self, file_bytes: bytes, original_filename: str, mime_type: str
     ) -> Tuple[str, str]:
-        """Upload to Google Drive, preserving the original filename."""
         file_metadata = {
-            "name": original_filename,   # Keep human-readable name
+            "name": original_filename,
             "parents": [self.folder_id],
         }
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type, resumable=False)
 
         uploaded = self._drive_service.files().create(
-            body=file_metadata, media_body=media, fields="id"
+            body=file_metadata,
+            media_body=media,
+            fields="id",
+            # supportsAllDrives not needed since we use OAuth as the owner
         ).execute()
 
         file_id = uploaded["id"]
 
-        # Make readable by anyone with the link (needed for preview iframe)
+        # Make readable by anyone with the link (for preview iframe)
         self._drive_service.permissions().create(
             fileId=file_id,
             body={"type": "anyone", "role": "reader"},
             fields="id",
         ).execute()
 
-        preview_url = _direct_preview_url(file_id)
-        return file_id, preview_url
+        return file_id, _preview_url(file_id)
 
     async def _upload_supabase(
         self, file_bytes: bytes, original_filename: str, mime_type: str, task_id: str
     ) -> Tuple[str, None]:
-        """Upload to Supabase Storage."""
         from config import get_supabase_admin
         admin = get_supabase_admin()
         storage_path = f"{task_id}/{original_filename}"
@@ -124,20 +126,9 @@ class StorageService:
     # ─── Get URL ──────────────────────────────────────────────────────────────
 
     def get_file_url(self, storage_identifier: str) -> str:
-        """
-        Return a URL for downloading (or previewing) a file.
-        
-        The frontend uses this URL two ways:
-          - Preview: opens in iframe/img  → needs a non-redirect URL
-          - Download: fetched as Blob     → needs a direct binary URL
-        
-        For Google Drive we return the download URL; the frontend preview 
-        uses the /preview embed URL which is stored separately in `web_view_url`.
-        For Supabase we return a 1-hour signed URL.
-        """
+        """Download URL."""
         if self.backend == "gdrive":
-            # storage_identifier is the Drive file_id
-            return _direct_download_url(storage_identifier)
+            return _download_url(storage_identifier)
         else:
             from config import get_supabase_admin
             admin = get_supabase_admin()
@@ -151,13 +142,9 @@ class StorageService:
                 return ""
 
     def get_preview_url(self, storage_identifier: str) -> str:
-        """
-        Return a URL suited for browser-embeddable preview (iframe/img).
-        For Drive this is the /preview embed URL.
-        For Supabase it's the same signed URL (browsers can inline Supabase URLs).
-        """
+        """Embeddable preview URL (for iframe/img overlay)."""
         if self.backend == "gdrive":
-            return _direct_preview_url(storage_identifier)
+            return _preview_url(storage_identifier)
         else:
             return self.get_file_url(storage_identifier)
 
@@ -178,7 +165,7 @@ class StorageService:
                 logger.error(f"Supabase delete failed: {e}")
 
 
-# Module-level singleton — initialized lazily to respect env vars loaded by dotenv
+# Lazy singleton
 _storage_service: Optional[StorageService] = None
 
 
@@ -187,7 +174,3 @@ def get_storage_service() -> StorageService:
     if _storage_service is None:
         _storage_service = StorageService()
     return _storage_service
-
-
-# Backward-compat alias used by files.py
-storage_service = get_storage_service()
